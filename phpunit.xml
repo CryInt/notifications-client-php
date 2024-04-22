@@ -1,0 +1,12 @@
+<phpunit bootstrap="vendor/autoload.php">
+    <testsuites>
+        <testsuite name="MyProject">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <env name="NOTIFICATIONS_HOST" value="https://notifications.x03.se" force="true" />
+        <env name="NOTIFICATIONS_CLIENT_PREFIX" value="client-test" force="true" />
+        <env name="NOTIFICATIONS_API_KEY" value="1234-XXX-5678" force="true" />
+    </php>
+</phpunit>

@@ -1,0 +1,25 @@
+{
+    "name": "cry/notifications-client-php",
+    "description": "Notifications / Client for pure PHP",
+    "version": "0.0.1",
+    "type": "library",
+    "license": "free",
+    "autoload": {
+        "psr-4": {
+            "CryCMS\\Notifications\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Дмитрий Cry",
+            "email": "cry.int@gmail.com"
+        }
+    ],
+    "require": {
+        "ext-json": "*",
+        "ext-curl": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    }
+}
