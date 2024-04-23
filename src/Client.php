@@ -12,6 +12,7 @@ class Client
     protected $clientPrefix;
     protected $apiKey;
 
+    protected const METHOD_PING = '/api/?ping';
     protected const METHOD_SERVER_LIST = '/api/?serversList';
     protected const METHOD_MESSAGE_SEND = '/api/?messageSend';
     protected const METHOD_DIRECT_SEND = '/api/?directSend';
@@ -23,6 +24,20 @@ class Client
         $this->host = $host;
         $this->clientPrefix = $clientPrefix;
         $this->apiKey = $apiKey;
+    }
+
+    public function ping(): bool
+    {
+        $this->error = null;
+
+        try {
+            $response = $this->cUrl($this->host . self::METHOD_SERVER_LIST, []);
+        } catch (JsonException|RuntimeException $exception) {
+            $this->error = $exception->getMessage();
+            return false;
+        }
+
+        return !empty($response['success']);
     }
 
     public function getServerList(): ?array

@@ -50,6 +50,12 @@ final class ClientTest extends TestCase
         $this->client = new Client($host, $clientPrefix, $apiKey);
     }
 
+    public function testPing(): void
+    {
+        $result = $this->client->ping();
+        $this->assertTrue($result);
+    }
+
     public function testGetServerList(): void
     {
         $result = $this->client->getServerList();
