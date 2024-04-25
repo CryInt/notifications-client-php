@@ -3,6 +3,7 @@ namespace CryCMS\Notifications;
 
 use CryCMS\Notifications\DTO\MessageSMTP;
 use CryCMS\Notifications\DTO\MessageTelegram;
+use CryCMS\Notifications\DTO\MessageGreenAPI;
 use JsonException;
 use RuntimeException;
 
@@ -11,6 +12,8 @@ class Client
     protected $host;
     protected $clientPrefix;
     protected $apiKey;
+    
+    protected const COMPOSER_FILE = __DIR__ . '/../composer.json';
 
     protected const METHOD_PING = '/api/?ping';
     protected const METHOD_SERVER_LIST = '/api/?serversList';
@@ -18,12 +21,40 @@ class Client
     protected const METHOD_DIRECT_SEND = '/api/?directSend';
 
     protected $error;
+    
+    protected $version = null;
 
     public function __construct(string $host, string $clientPrefix, string $apiKey)
     {
         $this->host = $host;
         $this->clientPrefix = $clientPrefix;
         $this->apiKey = $apiKey;
+                
+        $this->version = $this->getClientVersion();
+    }
+    
+    protected function getClientVersion(): ?string
+    {
+        if (file_exists(self::COMPOSER_FILE)) {
+            $composerContent = file_get_contents(self::COMPOSER_FILE);
+            if (self::isJson($composerContent)) {
+                try {
+                    $composerData = json_decode($composerContent, true, 512, JSON_THROW_ON_ERROR);
+                    if (!empty($composerData['version'])) {
+                        if (mb_strpos($composerData['version'], 'v', 0, 'UTF-8') !== 0) {
+                            $composerData['version'] = 'v' . $composerData['version'];
+                        }
+                        
+                        return $composerData['version'];
+                    }
+                }
+                catch (JsonException $exception) {
+                    
+                }
+            }
+        }
+        
+        return null;
     }
 
     public function ping(): bool
@@ -31,7 +62,7 @@ class Client
         $this->error = null;
 
         try {
-            $response = $this->cUrl($this->host . self::METHOD_SERVER_LIST, []);
+            $response = $this->cUrl($this->host . self::METHOD_PING, []);
         } catch (JsonException|RuntimeException $exception) {
             $this->error = $exception->getMessage();
             return false;
@@ -67,6 +98,13 @@ class Client
             ];
         }
         elseif ($message instanceof MessageTelegram) {
+            $data = [
+                'server' => $serverPrefix,
+                'recipient' => $message->recipient,
+                'content' => $message->content,
+            ];
+        }
+        elseif ($message instanceof MessageGreenAPI) {
             $data = [
                 'server' => $serverPrefix,
                 'recipient' => $message->recipient,
@@ -139,6 +177,7 @@ class Client
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Login: ' . $this->clientPrefix,
             'Authorization: Bearer ' . md5($this->clientPrefix . ':' . $this->apiKey),
+            'Version: ' . $this->version,
         ]);
 
         $result = curl_exec($ch);
