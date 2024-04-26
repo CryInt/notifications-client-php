@@ -1,7 +1,7 @@
 {
     "name": "cry/notifications-client-php",
     "description": "Notifications / Client for pure PHP",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "type": "library",
     "license": "free",
     "autoload": {
@@ -17,7 +17,8 @@
     ],
     "require": {
         "ext-json": "*",
-        "ext-curl": "*"
+        "ext-curl": "*",
+        "ext-mbstring": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.6"

@@ -22,7 +22,7 @@ class Client
 
     protected $error;
     
-    protected $version = null;
+    protected $version;
 
     public function __construct(string $host, string $clientPrefix, string $apiKey)
     {
@@ -172,12 +172,14 @@ class Client
         curl_setopt($ch, CURLOPT_TIMEOUT, 720);
 
         curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        if (!empty($data)) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        }
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Login: ' . $this->clientPrefix,
             'Authorization: Bearer ' . md5($this->clientPrefix . ':' . $this->apiKey),
-            'Version: ' . $this->version,
+            'Version: ' . ($this->version ?? '-'),
         ]);
 
         $result = curl_exec($ch);
