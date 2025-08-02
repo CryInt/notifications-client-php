@@ -3,7 +3,7 @@
     "description": "Notifications / Client for pure PHP",
     "version": "0.0.5",
     "type": "library",
-    "license": "free",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "CryCMS\\Notifications\\": "src/"
