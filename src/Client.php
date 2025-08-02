@@ -1,6 +1,7 @@
 <?php
 namespace CryCMS\Notifications;
 
+use CryCMS\Notifications\DTO\Message;
 use CryCMS\Notifications\DTO\MessageSMTP;
 use CryCMS\Notifications\DTO\MessageTelegram;
 use CryCMS\Notifications\DTO\MessageGreenAPI;
@@ -12,7 +13,7 @@ class Client
     protected $host;
     protected $clientPrefix;
     protected $apiKey;
-    
+
     protected const COMPOSER_FILE = __DIR__ . '/../composer.json';
 
     protected const METHOD_PING = '/api/?ping';
@@ -21,7 +22,7 @@ class Client
     protected const METHOD_DIRECT_SEND = '/api/?directSend';
 
     protected $error;
-    
+
     protected $version;
 
     public function __construct(string $host, string $clientPrefix, string $apiKey)
@@ -29,10 +30,10 @@ class Client
         $this->host = $host;
         $this->clientPrefix = $clientPrefix;
         $this->apiKey = $apiKey;
-                
+
         $this->version = $this->getClientVersion();
     }
-    
+
     protected function getClientVersion(): ?string
     {
         if (file_exists(self::COMPOSER_FILE)) {
@@ -44,16 +45,16 @@ class Client
                         if (mb_strpos($composerData['version'], 'v', 0, 'UTF-8') !== 0) {
                             $composerData['version'] = 'v' . $composerData['version'];
                         }
-                        
+
                         return $composerData['version'];
                     }
                 }
                 catch (JsonException $exception) {
-                    
+
                 }
             }
         }
-        
+
         return null;
     }
 
@@ -85,7 +86,7 @@ class Client
         return $response['list'] ?? null;
     }
 
-    public function send(string $serverPrefix, $message, bool $direct = false): ?array
+    public function send(string $serverPrefix, Message $message, bool $direct = false, bool $raw = false): ?array
     {
         $this->error = null;
 
@@ -117,7 +118,10 @@ class Client
         }
 
         try {
-            $response = $this->cUrl($this->host . self::METHOD_MESSAGE_SEND, $data);
+            $response = $this->cUrl($this->host . self::METHOD_MESSAGE_SEND, $data, $raw);
+            if ($raw) {
+                return ['response' => $response];
+            }
         } catch (JsonException|RuntimeException $exception) {
             $this->error = $exception->getMessage();
             return null;
@@ -161,7 +165,7 @@ class Client
     /**
      * @throws JsonException
      */
-    protected function cUrl(string $url, array $data = [])
+    protected function cUrl(string $url, array $data = [], $raw = false)
     {
         $ch = curl_init();
 
@@ -183,6 +187,9 @@ class Client
         ]);
 
         $result = curl_exec($ch);
+        if ($raw) {
+            return $result;
+        }
 
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
@@ -197,7 +204,14 @@ class Client
             if (!empty($result['error'])) {
                 $error = $result['error'];
                 if (!empty($result['details'])) {
-                    $error .= ': ' . $result['details'];
+                    if (is_array($result['details'])) {
+                        foreach ($result['details'] as $field => $detail) {
+                            $error .= ' [' . $field . ': ' . $detail . ']';
+                        }
+                    }
+                    else {
+                        $error .= ': ' . $result['details'];
+                    }
                 }
 
                 throw new RuntimeException($error, 95);
