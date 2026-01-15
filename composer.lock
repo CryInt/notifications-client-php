@@ -4,8 +4,56 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a19aedad8a533af7c2a0d279304f6bf7",
-    "packages": [],
+    "content-hash": "6959a5b5d55eab1128a1a7d26e823ecb",
+    "packages": [
+        {
+            "name": "cry/cry-cms-curl",
+            "version": "0.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/CryInt/CryCMS-CURL.git",
+                "reference": "ef6af87ca8cd944e65edaac4fc069581f3cd8cb9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/CryInt/CryCMS-CURL/zipball/ef6af87ca8cd944e65edaac4fc069581f3cd8cb9",
+                "reference": "ef6af87ca8cd944e65edaac4fc069581f3cd8cb9",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-fileinfo": "*",
+                "ext-json": "*",
+                "php": ">=7.4"
+            },
+            "require-dev": {
+                "ext-dom": "*",
+                "phpunit/phpunit": "9.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "CryCMS\\CURL\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Dmitrii (Cry) Rudakovskii",
+                    "email": "cry.int@gmail.com"
+                }
+            ],
+            "description": "Facade for PHP cURL",
+            "support": {
+                "issues": "https://github.com/CryInt/CryCMS-CURL/issues",
+                "source": "https://github.com/CryInt/CryCMS-CURL/tree/v0.3.1"
+            },
+            "time": "2026-01-15T15:19:33+00:00"
+        }
+    ],
     "packages-dev": [
         {
             "name": "doctrine/instantiator",
@@ -1753,8 +1801,9 @@
     "prefer-lowest": false,
     "platform": {
         "ext-json": "*",
-        "ext-curl": "*"
+        "ext-curl": "*",
+        "ext-mbstring": "*"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.3.0"
 }

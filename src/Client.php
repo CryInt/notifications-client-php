@@ -1,12 +1,14 @@
 <?php
 namespace CryCMS\Notifications;
 
+use CryCMS\CURL\CURL;
 use CryCMS\Notifications\DTO\Message;
 use CryCMS\Notifications\DTO\MessageSMTP;
 use CryCMS\Notifications\DTO\MessageTelegram;
 use CryCMS\Notifications\DTO\MessageGreenAPI;
+use CryCMS\Notifications\DTO\Response;
+use CryCMS\Notifications\Exception\SendException;
 use JsonException;
-use RuntimeException;
 
 class Client
 {
@@ -63,8 +65,8 @@ class Client
         $this->error = null;
 
         try {
-            $response = $this->cUrl($this->host . self::METHOD_PING, []);
-        } catch (JsonException|RuntimeException $exception) {
+            $response = $this->cUrl($this->host . self::METHOD_PING);
+        } catch (SendException $exception) {
             $this->error = $exception->getMessage();
             return false;
         }
@@ -77,8 +79,8 @@ class Client
         $this->error = null;
 
         try {
-            $response = $this->cUrl($this->host . self::METHOD_SERVER_LIST, []);
-        } catch (JsonException|RuntimeException $exception) {
+            $response = $this->cUrl($this->host . self::METHOD_SERVER_LIST);
+        } catch (SendException $exception) {
             $this->error = $exception->getMessage();
             return null;
         }
@@ -86,7 +88,7 @@ class Client
         return $response['list'] ?? null;
     }
 
-    public function send(string $serverPrefix, Message $message, bool $direct = false, bool $raw = false): ?array
+    public function send(string $serverPrefix, Message $message, bool $direct = false, bool $raw = false): ?Response
     {
         $this->error = null;
 
@@ -118,39 +120,45 @@ class Client
         }
 
         try {
-            $response = $this->cUrl($this->host . self::METHOD_MESSAGE_SEND, $data, $raw);
+            $responseCURL = $this->cUrl($this->host . self::METHOD_MESSAGE_SEND, $data, $raw);
             if ($raw) {
-                return ['response' => $response];
+                $response = new Response();
+                $response->raw = $responseCURL;
+                return $response;
             }
-        } catch (JsonException|RuntimeException $exception) {
+        } catch (SendException $exception) {
             $this->error = $exception->getMessage();
             return null;
         }
 
         if (!$direct) {
-            if (!empty($response['success'])) {
-                return [
-                    'queue_id' => $response['queue_id'] ?? '',
-                    'message_id' => $response['message_id'] ?? '',
-                ];
+            if (!empty($responseCURL['success'])) {
+                $response = new Response();
+                $response->queueId = $responseCURL['queue_id'] ?? '';
+                $response->messageId = $responseCURL['message_id'] ?? '';
+                return $response;
             }
 
             return null;
         }
 
         try {
-            $responseDirect = $this->cUrl($this->host . self::METHOD_DIRECT_SEND, ['server' => $serverPrefix] + $response);
-        } catch (JsonException|RuntimeException $exception) {
+            $responseDirect = $this->cUrl($this->host . self::METHOD_DIRECT_SEND, [
+                'server' => $serverPrefix,
+                'queue_id' => $responseCURL['queue_id'] ?? '',
+                'message_id' => $responseCURL['message_id'] ?? '',
+            ]);
+        } catch (SendException $exception) {
             $this->error = $exception->getMessage();
             return null;
         }
 
         if (!empty($responseDirect['success'])) {
-            return [
-                'directSent' => 'success',
-                'queue_id' => $response['queue_id'] ?? '',
-                'message_id' => $response['message_id'] ?? '',
-            ];
+            $response = new Response();
+            $response->directSent = true;
+            $response->queueId = $responseCURL['queue_id'] ?? '';
+            $response->messageId = $responseCURL['message_id'] ?? '';
+            return $response;
         }
 
         return null;
@@ -163,42 +171,30 @@ class Client
     }
 
     /**
-     * @throws JsonException
+     * @throws SendException
      */
     protected function cUrl(string $url, array $data = [], $raw = false)
     {
-        $ch = curl_init();
+        $response = CURL::post($url)
+            ->data($data)
+            ->timeout(30)
+            ->header('Login', $this->clientPrefix)
+            ->header('Version', $this->version ?? '-')
+            ->authorizationBearer(md5($this->clientPrefix . ':' . $this->apiKey))
+            ->send();
 
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 720);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 720);
-
-        curl_setopt($ch, CURLOPT_POST, 1);
-        if (!empty($data)) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-        }
-
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Login: ' . $this->clientPrefix,
-            'Authorization: Bearer ' . md5($this->clientPrefix . ':' . $this->apiKey),
-            'Version: ' . ($this->version ?? '-'),
-        ]);
-
-        $result = curl_exec($ch);
         if ($raw) {
-            return $result;
+            return $response->body;
         }
 
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-        curl_close($ch);
-
-        if (!empty($result) && self::isJson($result)) {
-            $result = json_decode($result, true, 512, JSON_THROW_ON_ERROR);
-            if ($result === false) {
-                throw new RuntimeException('Error parse Json', 95);
+        if (!empty($response->body) && self::isJson($response->body)) {
+            try {
+                $result = json_decode($response->body, true, 512, JSON_THROW_ON_ERROR);
+                if ($result === false) {
+                    throw new SendException('Error parse Json', 95);
+                }
+            } catch (JsonException $e) {
+                throw new SendException($e->getMessage(), $e->getCode());
             }
 
             if (!empty($result['error'])) {
@@ -214,13 +210,13 @@ class Client
                     }
                 }
 
-                throw new RuntimeException($error, 95);
+                throw new SendException($error, 95);
             }
 
             return $result;
         }
 
-        throw new RuntimeException($result, $httpCode);
+        throw new SendException($response->body, $response->httpCode);
     }
 
     public static function isJson($string): bool

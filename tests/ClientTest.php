@@ -4,6 +4,7 @@ declare(strict_types=1);
 use CryCMS\Notifications\Client;
 use CryCMS\Notifications\DTO\MessageSMTP;
 use CryCMS\Notifications\DTO\MessageTelegram;
+use CryCMS\Notifications\DTO\Response;
 use PHPUnit\Framework\TestCase;
 
 final class ClientTest extends TestCase
@@ -17,37 +18,22 @@ final class ClientTest extends TestCase
     {
         parent::setUp();
 
-        if (isset($_ENV) && array_key_exists('NOTIFICATIONS_HOST', $_ENV)) {
-            $host = $_ENV['NOTIFICATIONS_HOST'];
-        }
-        elseif (!empty($envHost = getenv('NOTIFICATIONS_HOST'))) {
-            $host = $envHost;
-        }
-        else {
-            $host = null;
-        }
-
-        if (isset($_ENV) && array_key_exists('NOTIFICATIONS_CLIENT_PREFIX', $_ENV)) {
-            $clientPrefix = $_ENV['NOTIFICATIONS_CLIENT_PREFIX'];
-        }
-        elseif (!empty($envToken = getenv('NOTIFICATIONS_CLIENT_PREFIX'))) {
-            $clientPrefix = $envToken;
-        }
-        else {
-            $clientPrefix = null;
-        }
-
-        if (isset($_ENV) && array_key_exists('NOTIFICATIONS_API_KEY', $_ENV)) {
-            $apiKey = $_ENV['NOTIFICATIONS_API_KEY'];
-        }
-        elseif (!empty($envToken = getenv('NOTIFICATIONS_API_KEY'))) {
-            $apiKey = $envToken;
-        }
-        else {
-            $apiKey = null;
-        }
+        $host = self::getENV('NOTIFICATIONS_HOST');
+        $clientPrefix = self::getENV('NOTIFICATIONS_CLIENT_PREFIX');
+        $apiKey = self::getENV('NOTIFICATIONS_API_KEY');
 
         $this->client = new Client($host, $clientPrefix, $apiKey);
+    }
+
+    public function testErrorResult(): void
+    {
+        $host = self::getENV('NOTIFICATIONS_HOST');
+        $clientPrefix = self::getENV('NOTIFICATIONS_CLIENT_PREFIX');
+
+        $client = new Client($host, $clientPrefix, 'bad key');
+        $result = $client->ping();
+        $this->assertFalse($result);
+        $this->assertEquals('Forbidden', $client->getError());
     }
 
     public function testPing(): void
@@ -73,45 +59,48 @@ final class ClientTest extends TestCase
 
         $result = $this->client->send(self::SERVER_SMTP, $message);
         $this->assertNotNull($result);
-        $this->assertIsArray($result);
-        $this->assertNotEmpty($result);
-        $this->assertArrayHasKey('queue_id', $result);
-        $this->assertArrayHasKey('message_id', $result);
-        $this->assertNotEmpty($result['queue_id']);
-        $this->assertNotEmpty($result['message_id']);
+        $this->assertInstanceOf(Response::class, $result);
+        $this->assertNotEmpty($result->queueId);
+        $this->assertNotEmpty($result->messageId);
     }
 
     public function testSendMessageTelegram(): void
     {
         $message = new MessageTelegram();
         $message->recipient = '409980849';
-        $message->content = date('Y-m-d H:i:s');
+        $message->content = date('Y-m-d H:i:s') . ' [SEND IN QUEUE]';
 
         $result = $this->client->send(self::SERVER_TELEGRAM, $message);
         $this->assertNotNull($result);
-        $this->assertIsArray($result);
-        $this->assertNotEmpty($result);
-        $this->assertArrayHasKey('queue_id', $result);
-        $this->assertArrayHasKey('message_id', $result);
-        $this->assertNotEmpty($result['queue_id']);
-        $this->assertNotEmpty($result['message_id']);
+        $this->assertInstanceOf(Response::class, $result);
+        $this->assertNotEmpty($result->queueId);
+        $this->assertNotEmpty($result->messageId);
     }
 
     public function testSendMessageTelegramDirect(): void
     {
         $message = new MessageTelegram();
         $message->recipient = '409980849';
-        $message->content = date('Y-m-d H:i:s');
+        $message->content = date('Y-m-d H:i:s') . ' [SEND DIRECT MESSAGE]';
 
         $result = $this->client->send(self::SERVER_TELEGRAM, $message, true);
         $this->assertNotNull($result);
-        $this->assertIsArray($result);
-        $this->assertNotEmpty($result);
-        $this->assertArrayHasKey('directSent', $result);
-        $this->assertArrayHasKey('queue_id', $result);
-        $this->assertArrayHasKey('message_id', $result);
-        $this->assertEquals('success', $result['directSent']);
-        $this->assertNotEmpty($result['queue_id']);
-        $this->assertNotEmpty($result['message_id']);
+        $this->assertInstanceOf(Response::class, $result);
+        $this->assertNotEmpty($result->queueId);
+        $this->assertNotEmpty($result->messageId);
+        $this->assertTrue($result->directSent);
+    }
+
+    protected static function getENV(string $key): ?string
+    {
+        if (isset($_ENV) && array_key_exists($key, $_ENV)) {
+            return $_ENV[$key];
+        }
+
+        if (!empty($envHost = getenv($key))) {
+            return $envHost;
+        }
+
+        return null;
     }
 }
