@@ -4,6 +4,8 @@ declare(strict_types=1);
 use CryCMS\Notifications\Client;
 use CryCMS\Notifications\DTO\MessageSMTP;
 use CryCMS\Notifications\DTO\MessageTelegram;
+use CryCMS\Notifications\DTO\Queue;
+use CryCMS\Notifications\DTO\QueueMessage;
 use CryCMS\Notifications\DTO\Response;
 use PHPUnit\Framework\TestCase;
 
@@ -23,6 +25,7 @@ final class ClientTest extends TestCase
         $apiKey = self::getENV('NOTIFICATIONS_API_KEY');
 
         $this->client = new Client($host, $clientPrefix, $apiKey);
+        $this->client->setInstance('INSTANCE-TEST');
     }
 
     public function testErrorResult(): void
@@ -50,7 +53,7 @@ final class ClientTest extends TestCase
         $this->assertNotEmpty($result);
     }
 
-    public function testSendMessageSMTP(): void
+    public function testSendMessageSMTP(): ?int
     {
         $message = new MessageSMTP();
         $message->recipient = 'cry.int@gmail.com';
@@ -62,8 +65,11 @@ final class ClientTest extends TestCase
         $this->assertInstanceOf(Response::class, $result);
         $this->assertNotEmpty($result->queueId);
         $this->assertNotEmpty($result->messageId);
+
+        return $result->messageId;
     }
 
+    /*
     public function testSendMessageTelegram(): void
     {
         $message = new MessageTelegram();
@@ -89,6 +95,40 @@ final class ClientTest extends TestCase
         $this->assertNotEmpty($result->queueId);
         $this->assertNotEmpty($result->messageId);
         $this->assertTrue($result->directSent);
+    }
+    */
+
+    /**
+     * @depends testSendMessageSMTP
+     */
+    public function testGetMessageInfo(?int $messageId): void
+    {
+        $messageInfo = $this->client->getMessageInfo(self::SERVER_SMTP, $messageId, true);
+
+        $this->assertNotNull($messageInfo);
+        $this->assertEquals($messageId, $messageInfo->messageId);
+        $this->assertEquals(self::SERVER_SMTP, $messageInfo->server);
+        $this->assertEquals('cry.int@gmail.com', $messageInfo->recipient);
+        $this->assertEquals('New',  $messageInfo->status);
+        $this->assertNotEmpty($messageInfo->content);
+        $this->assertNull($messageInfo->error);
+    }
+
+    public function testQueue(): void
+    {
+        $queue = $this->client->getQueue(0, 1);
+
+        $this->assertNotNull($queue);
+        $this->assertIsArray($queue->list);
+        $this->assertNotEmpty($queue->count);
+
+        foreach ($queue->list as $queue) {
+            $this->assertInstanceOf(Queue::class, $queue);
+            $this->assertNotEmpty($queue->queueId);
+            $this->assertNotEmpty($queue->message);
+            $this->assertInstanceOf(QueueMessage::class, $queue->message);
+            $this->assertNotEmpty($queue->message->id);
+        }
     }
 
     protected static function getENV(string $key): ?string

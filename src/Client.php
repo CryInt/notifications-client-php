@@ -3,9 +3,13 @@ namespace CryCMS\Notifications;
 
 use CryCMS\CURL\CURL;
 use CryCMS\Notifications\DTO\Message;
+use CryCMS\Notifications\DTO\MessageInfo;
 use CryCMS\Notifications\DTO\MessageSMTP;
 use CryCMS\Notifications\DTO\MessageTelegram;
 use CryCMS\Notifications\DTO\MessageGreenAPI;
+use CryCMS\Notifications\DTO\Queue;
+use CryCMS\Notifications\DTO\QueueMessage;
+use CryCMS\Notifications\DTO\QueueResponse;
 use CryCMS\Notifications\DTO\Response;
 use CryCMS\Notifications\Exception\SendException;
 use JsonException;
@@ -15,6 +19,7 @@ class Client
     protected $host;
     protected $clientPrefix;
     protected $apiKey;
+    protected $instance;
 
     protected const COMPOSER_FILE = __DIR__ . '/../composer.json';
 
@@ -22,6 +27,8 @@ class Client
     protected const METHOD_SERVER_LIST = '/api/?serversList';
     protected const METHOD_MESSAGE_SEND = '/api/?messageSend';
     protected const METHOD_DIRECT_SEND = '/api/?directSend';
+    protected const METHOD_MESSAGE_INFO = '/api/?messageInfo';
+    protected const METHOD_QUEUE = '/api/?queue';
 
     protected $error;
 
@@ -34,6 +41,11 @@ class Client
         $this->apiKey = $apiKey;
 
         $this->version = $this->getClientVersion();
+    }
+
+    public function setInstance(string $instance)
+    {
+        $this->instance = $instance;
     }
 
     protected function getClientVersion(): ?string
@@ -164,6 +176,93 @@ class Client
         return null;
     }
 
+    public function getMessageInfo(string $serverPrefix, int $messageId, bool $withContent = false): ?MessageInfo
+    {
+        $data = [
+            'server' => $serverPrefix,
+            'message_id' => $messageId,
+        ];
+
+        if ($withContent) {
+            $data['content'] = 1;
+        }
+
+        try {
+            $responseCURL = $this->cUrl($this->host . self::METHOD_MESSAGE_INFO, $data);
+            if (empty($responseCURL['success'])) {
+                return null;
+            }
+
+            $messageInfo = new MessageInfo();
+            $messageInfo->messageId = $responseCURL['message_id'] ?? null;
+            $messageInfo->server = $responseCURL['server'] ?? null;
+            $messageInfo->recipient = $responseCURL['recipient'] ?? null;
+            $messageInfo->dateCreate = $responseCURL['date_create'] ?? null;
+            $messageInfo->dateStatus = $responseCURL['date_status'] ?? null;
+            $messageInfo->status = $responseCURL['status'] ?? null;
+            $messageInfo->content = $responseCURL['content'] ?? null;
+            $messageInfo->error = $responseCURL['error'] ?? null;
+
+            return $messageInfo;
+        }
+        catch (SendException $exception) {
+            $this->error = $exception->getMessage();
+        }
+
+        return null;
+    }
+
+    public function getQueue(int $offset = 0, int $limit = 20): ?QueueResponse
+    {
+        $data = [
+            'offset' => $offset,
+            'limit' => $limit,
+        ];
+
+        try {
+            $responseCURL = $this->cUrl($this->host . self::METHOD_QUEUE, $data);
+            if (empty($responseCURL)) {
+                return null;
+            }
+
+            $queueResponse = new QueueResponse();
+            $queueResponse->count = $responseCURL['count'] ?? 0;
+
+            $list = [];
+            if (!empty($responseCURL['list'])) {
+                foreach ($responseCURL['list'] as $item) {
+                    $queue = new Queue();
+                    $queue->queueId = $item['queue_id'] ?? null;
+                    $queue->client = $item['client'] ?? null;
+                    $queue->instance = $item['instance'] ?? null;
+                    $queue->type = $item['type'] ?? null;
+                    $queue->server = $item['server'] ?? null;
+
+                    $message = new QueueMessage();
+                    $message->subject = $item['message']['subject'] ?? null;
+                    $message->recipient = $item['message']['recipient'] ?? null;
+                    $message->id = $item['message']['id'] ?? null;
+                    $queue->message = $message;
+                    
+                    $queue->date_created_at =  $item['date_created_at'] ?? null;
+                    $queue->date_status_at =  $item['date_status_at'] ?? null;
+                    $queue->status = $item['status'] ?? null;
+
+                    $list[] = $queue;
+                }
+            }
+
+            $queueResponse->list = $list;
+
+            return $queueResponse;
+        }
+        catch (SendException $exception) {
+            $this->error = $exception->getMessage();
+        }
+
+        return null;
+    }
+
     /** @noinspection PhpUnused */
     public function getError(): ?string
     {
@@ -175,13 +274,18 @@ class Client
      */
     protected function cUrl(string $url, array $data = [], $raw = false)
     {
-        $response = CURL::post($url)
+        $query = CURL::post($url)
             ->data($data)
             ->timeout(30)
             ->header('Login', $this->clientPrefix)
             ->header('Version', $this->version ?? '-')
-            ->authorizationBearer(md5($this->clientPrefix . ':' . $this->apiKey))
-            ->send();
+            ->authorizationBearer(md5($this->clientPrefix . ':' . $this->apiKey));
+
+        if ($this->instance !== null) {
+            $query->header('Instance', $this->instance);
+        }
+
+        $response = $query->send();
 
         if ($raw) {
             return $response->body;
