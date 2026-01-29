@@ -9,6 +9,6 @@ class MessageInfo
     public $dateCreate = null;
     public $dateStatus = null;
     public $status = null;
+    public $statusError = null;
     public $content = null;
-    public $error = null;
 }

@@ -200,8 +200,8 @@ class Client
             $messageInfo->dateCreate = $responseCURL['date_create'] ?? null;
             $messageInfo->dateStatus = $responseCURL['date_status'] ?? null;
             $messageInfo->status = $responseCURL['status'] ?? null;
+            $messageInfo->statusError = $responseCURL['error'] ?? null;
             $messageInfo->content = $responseCURL['content'] ?? null;
-            $messageInfo->error = $responseCURL['error'] ?? null;
 
             return $messageInfo;
         }
@@ -243,7 +243,7 @@ class Client
                     $message->recipient = $item['message']['recipient'] ?? null;
                     $message->id = $item['message']['id'] ?? null;
                     $queue->message = $message;
-                    
+
                     $queue->date_created_at =  $item['date_created_at'] ?? null;
                     $queue->date_status_at =  $item['date_status_at'] ?? null;
                     $queue->status = $item['status'] ?? null;

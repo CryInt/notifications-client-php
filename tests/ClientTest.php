@@ -111,7 +111,7 @@ final class ClientTest extends TestCase
         $this->assertEquals('cry.int@gmail.com', $messageInfo->recipient);
         $this->assertEquals('New',  $messageInfo->status);
         $this->assertNotEmpty($messageInfo->content);
-        $this->assertNull($messageInfo->error);
+        $this->assertNull($messageInfo->statusError);
     }
 
     public function testQueue(): void
