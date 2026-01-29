@@ -1,7 +1,7 @@
 {
     "name": "cry/notifications-client-php",
     "description": "Notifications / Client for pure PHP",
-    "version": "v0.2.1",
+    "version": "v0.2.2",
     "type": "library",
     "license": "MIT",
     "autoload": {

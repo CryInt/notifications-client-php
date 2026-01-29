@@ -200,7 +200,7 @@ class Client
             $messageInfo->dateCreate = $responseCURL['date_create'] ?? null;
             $messageInfo->dateStatus = $responseCURL['date_status'] ?? null;
             $messageInfo->status = $responseCURL['status'] ?? null;
-            $messageInfo->statusError = $responseCURL['error'] ?? null;
+            $messageInfo->statusError = $responseCURL['statusError'] ?? null;
             $messageInfo->content = $responseCURL['content'] ?? null;
 
             return $messageInfo;
