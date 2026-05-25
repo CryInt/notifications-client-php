@@ -3,6 +3,7 @@ namespace CryCMS\Notifications;
 
 use CryCMS\CURL\CURL;
 use CryCMS\Notifications\DTO\Message;
+use CryCMS\Notifications\DTO\MessageBeeline;
 use CryCMS\Notifications\DTO\MessageInfo;
 use CryCMS\Notifications\DTO\MessageSMTP;
 use CryCMS\Notifications\DTO\MessageTelegram;
@@ -120,6 +121,13 @@ class Client
             ];
         }
         elseif ($message instanceof MessageGreenAPI) {
+            $data = [
+                'server' => $serverPrefix,
+                'recipient' => $message->recipient,
+                'content' => $message->content,
+            ];
+        }
+        elseif ($message instanceof MessageBeeline) {
             $data = [
                 'server' => $serverPrefix,
                 'recipient' => $message->recipient,
